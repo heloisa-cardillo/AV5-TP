@@ -26,29 +26,29 @@ export default class CadastroHospedagem extends Processo {
         }
 
         if (this.acomodacoes.length === 0) {
-            console.log('Nenhuma acomodação disponível.')
+            console.log('Nenhuma acomodacao disponivel.')
             return
         }
 
-        console.log('\nClientes cadastrados:')
+        console.log('Clientes cadastrados:')
         this.clientes.forEach((cliente, index) => {
-            console.log(${index + 1} - )
+            console.log((index + 1) + ' - ' + cliente.Nome)
         })
-        const indiceCliente = this.entrada.receberNumero('Selecione o número do cliente:') - 1
+        const indiceCliente = this.entrada.receberNumero('Selecione o numero do cliente:') - 1
 
         if (indiceCliente < 0 || indiceCliente >= this.clientes.length) {
-            console.log('Cliente inválido.')
+            console.log('Cliente invalido.')
             return
         }
 
-        console.log('\nAcomodações disponíveis:')
+        console.log('Acomodacoes disponiveis:')
         this.acomodacoes.forEach((acomodacao, index) => {
-            console.log(${index + 1} - )
+            console.log((index + 1) + ' - ' + acomodacao.NomeAcomadacao)
         })
-        const indiceAcomodacao = this.entrada.receberNumero('Selecione o número da acomodação:') - 1
+        const indiceAcomodacao = this.entrada.receberNumero('Selecione o numero da acomodacao:') - 1
 
         if (indiceAcomodacao < 0 || indiceAcomodacao >= this.acomodacoes.length) {
-            console.log('Acomodação inválida.')
+            console.log('Acomodacao invalida.')
             return
         }
 
@@ -57,8 +57,8 @@ export default class CadastroHospedagem extends Processo {
             this.acomodacoes[indiceAcomodacao]
         )
         this.hospedagens.push(hospedagem)
-        console.log(\nHospedagem registrada com sucesso!)
-        console.log(Hóspede: )
-        console.log(Acomodação: )
+        console.log('Hospedagem registrada com sucesso!')
+        console.log('Hospede: ' + this.clientes[indiceCliente].Nome)
+        console.log('Acomodacao: ' + this.acomodacoes[indiceAcomodacao].NomeAcomadacao)
     }
 }
