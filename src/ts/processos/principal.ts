@@ -1,6 +1,9 @@
-import Processo from "../abstracoes/processo"
-import MenuPrincipal from "../menus/menuPricipal"
+﻿import Processo from "../abstracoes/processo"
+import CadastroAcomodacoes from "./cadastroAcomodacoes"
+import CadastroHospedagem from "./cadastroHospedagem"
 import ListagemAcomodacoes from "./listagemAcomodacoes"
+import ListagemHospedagens from "./listagemHospedagens"
+import MenuPrincipal from "../menus/menuPricipal"
 import TipoCadastroCliente from "./tipoCadastroCliente"
 import TipoListagemClientes from "./tipoListagemClientes"
 
@@ -9,6 +12,7 @@ export default class Principal extends Processo {
         super()
         this.execucao = true
         this.menu = new MenuPrincipal()
+        new CadastroAcomodacoes().processar()
     }
     processar(): void {
         this.menu.mostrar()
@@ -24,6 +28,14 @@ export default class Principal extends Processo {
                 break
             case 5:
                 this.processo = new ListagemAcomodacoes()
+                this.processo.processar()
+                break
+            case 6:
+                this.processo = new CadastroHospedagem()
+                this.processo.processar()
+                break
+            case 7:
+                this.processo = new ListagemHospedagens()
                 this.processo.processar()
                 break
             case 0:

@@ -1,7 +1,28 @@
 {
-  "dependencies": {
-    "@types/node": "^18.0.0",
-    "@types/prompt-sync": "^4.1.1",
-    "prompt-sync": "^4.2.0"
-  }
+    "scripts": {
+        "start": "npx ts-node src/ts/app/app.ts",
+        "build": "npx tsc"
+    },
+    "dependencies": {
+        "@types/node": "^18.0.0",
+        "@types/prompt-sync": "^4.1.1",
+        "prompt-sync": "^4.2.0"
+    },
+    "name": "atviii-atlantis",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "devDependencies": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/gerson-pn/atviii-atlantis.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/gerson-pn/atviii-atlantis/issues"
+    },
+    "homepage": "https://github.com/gerson-pn/atviii-atlantis#readme"
 }
