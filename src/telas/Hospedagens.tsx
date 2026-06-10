@@ -1,15 +1,16 @@
 // src/telas/Hospedagens.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Tabela from '../componentes/Tabela';
 import Modal from '../componentes/Modal';
-import type { Hospedagem, Cliente } from '../types';
-import { DADOS_INICIAIS, ACOMODACOES_INICIAIS, NOME_EXIBICAO_ACOMODACAO } from '../types';
-import { useLocalStorage } from '../hookers/useLocalStorage';
+import type { Hospedagem, Cliente, Acomodacao } from '../types';
+import { NOME_EXIBICAO_ACOMODACAO } from '../types';
+import { getHospedes, getHospedagens, criarHospedagem, deletarHospedagem, getAcomodacoes } from '../services/api';
 import './Hospedagens.css';
 
 const Hospedagens: React.FC = () => {
-    const [hospedagens, setHospedagens] = useLocalStorage<Hospedagem[]>('atlantis_hospedagens', DADOS_INICIAIS.hospedagens);
-    const [hospedes] = useLocalStorage<Cliente[]>('atlantis_hospedes', DADOS_INICIAIS.clientes);
+    const [hospedagens, setHospedagens] = useState<Hospedagem[]>([]);
+    const [hospedes, setHospedes] = useState<Cliente[]>([]);
+    const [acomodacoes, setAcomodacoes] = useState<Acomodacao[]>([]);
 
     const [modalAberto, setModalAberto] = useState(false);
     const [erro, setErro] = useState('');
@@ -20,6 +21,14 @@ const Hospedagens: React.FC = () => {
         codigoAcomodacao: '',
         dataCheckIn: new Date().toISOString().split('T')[0]
     });
+
+    useEffect(() => {
+        getHospedagens().then(setHospedagens).catch(console.error);
+        getHospedes().then(setHospedes).catch(console.error);
+        getAcomodacoes().then(setAcomodacoes).catch(console.error);
+    }, []);
+
+    const recarregar = () => getHospedagens().then(setHospedagens).catch(console.error);
 
     const gerarCodigo = (): string => {
         const existentes = hospedagens.map(h => h.codigo);
@@ -47,26 +56,34 @@ const Hospedagens: React.FC = () => {
         setErro('');
     };
 
-    const salvarHospedagem = () => {
+    const salvarHospedagem = async () => {
         setErro('');
         if (!formData.codigoCliente || !formData.codigoAcomodacao || !formData.dataCheckIn) {
             setErro('Todos os campos são obrigatórios.');
             return;
         }
 
-        const novaHospedagem: Hospedagem = {
-            codigo: gerarCodigo(),
-            codigoCliente: formData.codigoCliente,
-            codigoAcomodacao: formData.codigoAcomodacao,
-            dataCheckIn: formData.dataCheckIn
-        };
-
-        setHospedagens([...hospedagens, novaHospedagem]);
-        fecharModal();
+        try {
+            await criarHospedagem({
+                codigo: gerarCodigo(),
+                codigoCliente: formData.codigoCliente,
+                codigoAcomodacao: formData.codigoAcomodacao,
+                dataCheckIn: formData.dataCheckIn
+            });
+            await recarregar();
+            fecharModal();
+        } catch (e) {
+            setErro('Erro ao registrar hospedagem. Verifique se o backend está rodando.');
+        }
     };
 
-    const excluirHospedagem = (hospedagem: Hospedagem) => {
-        setHospedagens(hospedagens.filter(h => h.codigo !== hospedagem.codigo));
+    const excluirHospedagem = async (hospedagem: Hospedagem) => {
+        try {
+            await deletarHospedagem(hospedagem.codigo);
+            await recarregar();
+        } catch (e) {
+            console.error('Erro ao excluir hospedagem', e);
+        }
     };
 
     const getNomeHospede = (codigo: string): string => {
@@ -75,7 +92,7 @@ const Hospedagens: React.FC = () => {
     };
 
     const getNomeAcomodacao = (codigo: string): string => {
-        const acom = ACOMODACOES_INICIAIS.find(a => a.codigo === codigo);
+        const acom = acomodacoes.find(a => a.codigo === codigo);
         return acom ? NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao] : codigo;
     };
 
@@ -96,7 +113,7 @@ const Hospedagens: React.FC = () => {
             key: 'codigoAcomodacao',
             label: 'Acomodação',
             render: (value: string) => {
-                const acom = ACOMODACOES_INICIAIS.find(a => a.codigo === value);
+                const acom = acomodacoes.find(a => a.codigo === value);
                 return acom ? (
                     <div>
                         <div style={{ fontWeight: 700 }}>{NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao]}</div>
@@ -151,7 +168,7 @@ const Hospedagens: React.FC = () => {
                         <label className="form-label">Acomodação:</label>
                         <select className="form-select" value={formData.codigoAcomodacao} onChange={e => setFormData({ ...formData, codigoAcomodacao: e.target.value })}>
                             <option value="">Selecione uma acomodação...</option>
-                            {ACOMODACOES_INICIAIS.map(a => (
+                            {acomodacoes.map(a => (
                                 <option key={a.codigo} value={a.codigo}>
                                     {NOME_EXIBICAO_ACOMODACAO[a.nomeAcomodacao]} ({a.nomeAcomodacao})
                                 </option>
@@ -161,7 +178,8 @@ const Hospedagens: React.FC = () => {
 
                     <div className="form-group">
                         <label className="form-label">Data de Check-in:</label>
-                        <input type="date" className="form-input" value={formData.dataCheckIn} min={new Date().toISOString().split('T')[0]} onChange={e => setFormData({ ...formData, dataCheckIn: e.target.value })} />                    </div>
+                        <input type="date" className="form-input" value={formData.dataCheckIn} min={new Date().toISOString().split('T')[0]} onChange={e => setFormData({ ...formData, dataCheckIn: e.target.value })} />
+                    </div>
 
                     <div className="modal-footer">
                         <button className="btn-secondary" onClick={fecharModal}>Cancelar</button>

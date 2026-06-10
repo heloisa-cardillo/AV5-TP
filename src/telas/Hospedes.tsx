@@ -1,10 +1,10 @@
 // src/telas/Hospedes.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Tabela from '../componentes/Tabela';
 import Modal from '../componentes/Modal';
 import type { Cliente, Documento, Endereco, Telefone } from '../types';
-import { TipoDocumento, DADOS_INICIAIS } from '../types';
-import { useLocalStorage } from '../hookers/useLocalStorage';
+import { TipoDocumento } from '../types';
+import { getHospedes, criarHospede, atualizarHospede, deletarHospede } from '../services/api';
 import './Hospedes.css';
 
 const FORM_CLIENTE_INICIAL = {
@@ -26,7 +26,7 @@ const FORM_CLIENTE_INICIAL = {
 const FORM_DOC_INICIAL = { numero: '', tipo: TipoDocumento.CPF, dataExpedicao: '' };
 
 const Hospedes: React.FC = () => {
-    const [hospedes, setHospedes] = useLocalStorage<Cliente[]>('atlantis_hospedes', DADOS_INICIAIS.clientes);
+    const [hospedes, setHospedes] = useState<Cliente[]>([]);
 
     const [modalAberto, setModalAberto] = useState(false);
     const [modalDocAberto, setModalDocAberto] = useState(false);
@@ -41,6 +41,13 @@ const Hospedes: React.FC = () => {
 
     const [formData, setFormData] = useState(FORM_CLIENTE_INICIAL);
     const [formDoc, setFormDoc] = useState(FORM_DOC_INICIAL);
+
+    // Carrega hóspedes da API ao montar
+    useEffect(() => {
+        getHospedes().then(setHospedes).catch(console.error);
+    }, []);
+
+    const recarregar = () => getHospedes().then(setHospedes).catch(console.error);
 
     const gerarCodigo = (prefixo: string): string => {
         const existentes = hospedes.map(h => h.codigo);
@@ -114,7 +121,7 @@ const Hospedes: React.FC = () => {
         setErro('');
     };
 
-    const salvarHospede = () => {
+    const salvarHospede = async () => {
         setErro('');
         if (!formData.nome || !formData.dataNascimento) {
             setErro('Nome e data de nascimento são obrigatórios.');
@@ -134,49 +141,46 @@ const Hospedes: React.FC = () => {
             ? [{ ddd: formData.ddd, numero: formData.numero }]
             : [];
 
-        if (hospedeEditando) {
-            setHospedes(hospedes.map(h =>
-                h.codigo === hospedeEditando.codigo
-                    ? { ...h, nome: formData.nome, nomeSocial: formData.nomeSocial, dataNascimento: formData.dataNascimento, foto: formData.foto, endereco, telefones }
-                    : h
-            ));
-        } else {
-            const codigo = gerarCodigo(tipoModal === 'dependente' ? 'DEP' : 'HSP');
-            const novoHospede: Cliente = {
-                codigo,
-                nome: formData.nome,
-                nomeSocial: formData.nomeSocial,
-                dataNascimento: formData.dataNascimento,
-                dataCadastro: new Date().toISOString().split('T')[0],
-                foto: formData.foto || '/imagens/jose.png',
-                endereco,
-                telefones,
-                documentos: [],
-                dependentes: [],
-                codigoTitular: tipoModal === 'dependente' ? formData.codigoTitular : undefined
-            };
-
-            let novosHospedes = [...hospedes, novoHospede];
-
-            if (tipoModal === 'dependente' && formData.codigoTitular) {
-                novosHospedes = novosHospedes.map(h =>
-                    h.codigo === formData.codigoTitular
-                        ? { ...h, dependentes: [...h.dependentes, codigo] }
-                        : h
-                );
+        try {
+            if (hospedeEditando) {
+                await atualizarHospede(hospedeEditando.codigo, {
+                    nome: formData.nome,
+                    nomeSocial: formData.nomeSocial,
+                    dataNascimento: formData.dataNascimento,
+                    foto: formData.foto,
+                    endereco,
+                    telefones,
+                    documentos: hospedeEditando.documentos,
+                });
+            } else {
+                const codigo = gerarCodigo(tipoModal === 'dependente' ? 'DEP' : 'HSP');
+                await criarHospede({
+                    codigo,
+                    nome: formData.nome,
+                    nomeSocial: formData.nomeSocial,
+                    dataNascimento: formData.dataNascimento,
+                    foto: formData.foto || '/imagens/jose.png',
+                    endereco,
+                    telefones,
+                    documentos: [],
+                    dependentes: [],
+                    codigoTitular: tipoModal === 'dependente' ? formData.codigoTitular : undefined,
+                });
             }
-
-            setHospedes(novosHospedes);
+            await recarregar();
+            fecharModal();
+        } catch (e) {
+            setErro('Erro ao salvar hóspede. Verifique se o backend está rodando.');
         }
-
-        fecharModal();
     };
 
-    const excluirHospede = (hospede: Cliente) => {
-        setHospedes(hospedes
-            .filter(h => h.codigo !== hospede.codigo)
-            .map(h => ({ ...h, dependentes: h.dependentes.filter((d: string) => d !== hospede.codigo) }))
-        );
+    const excluirHospede = async (hospede: Cliente) => {
+        try {
+            await deletarHospede(hospede.codigo);
+            await recarregar();
+        } catch (e) {
+            console.error('Erro ao excluir hóspede', e);
+        }
     };
 
     const abrirModalDoc = (hospede: Cliente) => {
@@ -195,50 +199,41 @@ const Hospedes: React.FC = () => {
         setDocEditandoIndex(index);
     };
 
-    const salvarDocumento = () => {
+    const salvarDocumento = async () => {
         if (!formDoc.numero || !formDoc.dataExpedicao || !hospedeDetalhe) return;
         const novoDoc: Documento = { numero: formDoc.numero, tipo: formDoc.tipo, dataExpedicao: formDoc.dataExpedicao };
 
-        setHospedes(hospedes.map(h => {
-            if (h.codigo !== hospedeDetalhe.codigo) return h;
-            const docs = [...h.documentos];
-            if (docEditandoIndex !== null) {
-                docs[docEditandoIndex] = novoDoc;
-            } else {
-                docs.push(novoDoc);
-            }
-            return { ...h, documentos: docs };
-        }));
+        const docs = [...hospedeDetalhe.documentos];
+        if (docEditandoIndex !== null) {
+            docs[docEditandoIndex] = novoDoc;
+        } else {
+            docs.push(novoDoc);
+        }
 
-        setHospedeDetalhe(prev => {
-            if (!prev) return prev;
-            const docs = [...prev.documentos];
-            if (docEditandoIndex !== null) {
-                docs[docEditandoIndex] = novoDoc;
-            } else {
-                docs.push(novoDoc);
-            }
-            return { ...prev, documentos: docs };
-        });
-
-        setFormDoc(FORM_DOC_INICIAL);
-        setDocEditandoIndex(null);
-    };
-
-    const excluirDocumento = (index: number) => {
-        if (!hospedeDetalhe) return;
-        setHospedes(hospedes.map(h =>
-            h.codigo === hospedeDetalhe.codigo
-                ? { ...h, documentos: h.documentos.filter((_: Documento, i: number) => i !== index) }
-                : h
-        ));
-        setHospedeDetalhe(prev => {
-            if (!prev) return prev;
-            return { ...prev, documentos: prev.documentos.filter((_: Documento, i: number) => i !== index) };
-        });
-        if (docEditandoIndex === index) {
+        try {
+            await atualizarHospede(hospedeDetalhe.codigo, { documentos: docs });
+            await recarregar();
+            setHospedeDetalhe(prev => prev ? { ...prev, documentos: docs } : prev);
             setFormDoc(FORM_DOC_INICIAL);
             setDocEditandoIndex(null);
+        } catch (e) {
+            console.error('Erro ao salvar documento', e);
+        }
+    };
+
+    const excluirDocumento = async (index: number) => {
+        if (!hospedeDetalhe) return;
+        const docs = hospedeDetalhe.documentos.filter((_: Documento, i: number) => i !== index);
+        try {
+            await atualizarHospede(hospedeDetalhe.codigo, { documentos: docs });
+            await recarregar();
+            setHospedeDetalhe(prev => prev ? { ...prev, documentos: docs } : prev);
+            if (docEditandoIndex === index) {
+                setFormDoc(FORM_DOC_INICIAL);
+                setDocEditandoIndex(null);
+            }
+        } catch (e) {
+            console.error('Erro ao excluir documento', e);
         }
     };
 
@@ -481,7 +476,6 @@ const Hospedes: React.FC = () => {
             {/* Modal Documentos CRUD */}
             <Modal isOpen={modalDocAberto} onClose={() => setModalDocAberto(false)} title={`Documentos — ${hospedeDetalhe?.nome}`}>
                 <div>
-                    {/* Lista de documentos existentes */}
                     {hospedeDetalhe && hospedeDetalhe.documentos?.length > 0 ? (
                         <table className="inner-table" style={{ marginBottom: '24px' }}>
                             <thead>
@@ -505,7 +499,6 @@ const Hospedes: React.FC = () => {
                         <p className="sem-dados" style={{ marginBottom: '24px' }}>Nenhum documento cadastrado</p>
                     )}
 
-                    {/* Formulário adicionar/editar */}
                     <h3 className="form-section-title">{docEditandoIndex !== null ? 'Editar Documento' : 'Adicionar Documento'}</h3>
                     <div className="form-group">
                         <label className="form-label">Tipo:</label>

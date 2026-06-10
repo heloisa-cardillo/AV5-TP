@@ -1,8 +1,17 @@
-import React from 'react';
-import { ACOMODACOES_INICIAIS, NOME_EXIBICAO_ACOMODACAO, NOME_CURTO_ACOMODACAO } from '../types';
+// src/telas/Acomodacoes.tsx
+import React, { useEffect, useState } from 'react';
+import type { Acomodacao } from '../types';
+import { NOME_EXIBICAO_ACOMODACAO, NOME_CURTO_ACOMODACAO } from '../types';
+import { getAcomodacoes } from '../services/api';
 import './Acomodacoes.css';
 
 const Acomodacoes: React.FC = () => {
+    const [acomodacoes, setAcomodacoes] = useState<Acomodacao[]>([]);
+
+    useEffect(() => {
+        getAcomodacoes().then(setAcomodacoes).catch(console.error);
+    }, []);
+
     return (
         <div>
             <div className="page-header">
@@ -10,7 +19,7 @@ const Acomodacoes: React.FC = () => {
             </div>
 
             <div className="acomodacoes-grid">
-                {ACOMODACOES_INICIAIS.map((acom) => (
+                {acomodacoes.map((acom) => (
                     <div key={acom.codigo} className="acomodacao-card">
                         <div className="acomodacao-card-header">
                             <div className="acomodacao-icone">
