@@ -169,7 +169,7 @@ const Hospedes: React.FC = () => {
             }
             await recarregar();
             fecharModal();
-        } catch (e) {
+        } catch {
             setErro('Erro ao salvar hóspede. Verifique se o backend está rodando.');
         }
     };
