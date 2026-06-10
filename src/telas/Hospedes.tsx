@@ -159,7 +159,7 @@ const Hospedes: React.FC = () => {
                     nome: formData.nome,
                     nomeSocial: formData.nomeSocial,
                     dataNascimento: formData.dataNascimento,
-                    foto: formData.foto || '/imagens/jose.png',
+                    foto: formData.foto || '/icones/iconePadrao.png',
                     endereco,
                     telefones,
                     documentos: [],
@@ -273,7 +273,7 @@ const Hospedes: React.FC = () => {
             label: '',
             render: (value: string) => (
                 <img
-                    src={value || '/imagens/jose.png'}
+                    src={value || '/icones/iconePadrao.png'}
                     alt="Foto"
                     style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
                     onClick={() => setFotoAmpliada(value)}
@@ -335,7 +335,7 @@ const Hospedes: React.FC = () => {
                                     <div key={dep.codigo} className="dependente-card">
                                         <div className="dependente-card-header">
                                             <div className="dependente-info">
-                                                <img src={dep.foto || '/imagens/jose.png'} alt="Foto" className="dependente-foto" onClick={() => setFotoAmpliada(dep.foto)} />
+                                                <img src={dep.foto || '/icones/iconePadrao.png'} alt="Foto" className="dependente-foto" onClick={() => setFotoAmpliada(dep.foto)} />
                                                 <div>
                                                     <div className="dependente-nome">{dep.nome}</div>
                                                     <div className="dependente-sub">{dep.nomeSocial} — {dep.dataNascimento}</div>
