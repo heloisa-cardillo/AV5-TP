@@ -1,11 +1,9 @@
 SET NAMES utf8mb4;
-SET CHARACTER SET utf8mb4;
 
-DROP DATABASE IF EXISTS atlantis;
-CREATE DATABASE atlantis CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS atlantis CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE atlantis;
 
-CREATE TABLE clientes (
+CREATE TABLE IF NOT EXISTS clientes (
   codigo         VARCHAR(20) PRIMARY KEY,
   nome           VARCHAR(255) NOT NULL,
   nome_social    VARCHAR(255) NOT NULL,
@@ -16,7 +14,7 @@ CREATE TABLE clientes (
   FOREIGN KEY (codigo_titular) REFERENCES clientes(codigo) ON DELETE CASCADE
 );
 
-CREATE TABLE enderecos (
+CREATE TABLE IF NOT EXISTS enderecos (
   codigo_cliente VARCHAR(20) PRIMARY KEY,
   rua            VARCHAR(255) NOT NULL,
   bairro         VARCHAR(255) NOT NULL,
@@ -27,7 +25,7 @@ CREATE TABLE enderecos (
   FOREIGN KEY (codigo_cliente) REFERENCES clientes(codigo) ON DELETE CASCADE
 );
 
-CREATE TABLE telefones (
+CREATE TABLE IF NOT EXISTS telefones (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   codigo_cliente VARCHAR(20) NOT NULL,
   ddd            VARCHAR(3) NOT NULL,
@@ -36,7 +34,7 @@ CREATE TABLE telefones (
   FOREIGN KEY (codigo_cliente) REFERENCES clientes(codigo) ON DELETE CASCADE
 );
 
-CREATE TABLE documentos (
+CREATE TABLE IF NOT EXISTS documentos (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   codigo_cliente VARCHAR(20) NOT NULL,
   numero         VARCHAR(50) NOT NULL,
@@ -46,7 +44,7 @@ CREATE TABLE documentos (
   FOREIGN KEY (codigo_cliente) REFERENCES clientes(codigo) ON DELETE CASCADE
 );
 
-CREATE TABLE acomodacoes (
+CREATE TABLE IF NOT EXISTS acomodacoes (
   codigo          VARCHAR(20) PRIMARY KEY,
   nome_acomodacao VARCHAR(255) NOT NULL,
   cama_solteiro   INT NOT NULL,
@@ -56,7 +54,7 @@ CREATE TABLE acomodacoes (
   garagem         INT NOT NULL
 );
 
-CREATE TABLE hospedagens (
+CREATE TABLE IF NOT EXISTS hospedagens (
   codigo            VARCHAR(20) PRIMARY KEY,
   codigo_cliente    VARCHAR(20) NOT NULL,
   codigo_acomodacao VARCHAR(20) NOT NULL,
@@ -65,8 +63,8 @@ CREATE TABLE hospedagens (
   FOREIGN KEY (codigo_acomodacao) REFERENCES acomodacoes(codigo)
 );
 
--- Acomodações
-INSERT INTO acomodacoes VALUES
+-- Dados iniciais (INSERT IGNORE: nao duplica nem sobrescreve em reinicios)
+INSERT IGNORE INTO acomodacoes VALUES
 ('ACOM001','Acomodação simples para solteiro(a)',1,0,1,1,0),
 ('ACOM002','Acomodação simples para casal',0,1,1,1,1),
 ('ACOM003','Acomodação para família com até duas crianças',2,1,1,1,1),
@@ -74,32 +72,28 @@ INSERT INTO acomodacoes VALUES
 ('ACOM005','Acomodação com garagem para solteiro(a)',0,1,1,1,1),
 ('ACOM006','Acomodação para até duas famílias, casal e três crianças cada',6,2,3,1,2);
 
--- Clientes
-INSERT INTO clientes VALUES
+INSERT IGNORE INTO clientes VALUES
 ('HSP001','José Ricardo','O coelho audacioso','1985-03-10','2024-01-15',NULL,'/imagens/jose.png'),
 ('HSP002','Daniele','A coelha carinhosa','1990-07-22','2024-01-15','HSP001','/imagens/dani.png'),
 ('HSP003','Amy','A coelha exploradora','1992-11-05','2024-02-01',NULL,'/imagens/amy.png'),
 ('HSP004','Frida','A coelha leal','1988-04-18','2024-02-10',NULL,'/imagens/frida.png'),
 ('HSP005','Hanna','A coelha gentil','1995-09-30','2024-03-05',NULL,'/imagens/hanna.png');
 
--- Endereços
-INSERT INTO enderecos VALUES
+INSERT IGNORE INTO enderecos VALUES
 ('HSP001','Rua Engenheiro Jose Longo, 622','Jardim Aquarius','São José dos Campos','SP','Brasil','12246-000'),
 ('HSP002','Rua Engenheiro Jose Longo, 622','Jardim Aquarius','São José dos Campos','SP','Brasil','12246-000'),
 ('HSP003','Rua Vilaça, 390','Vila Adyana','São José dos Campos','SP','Brasil','12243-020'),
 ('HSP004','Av. Dr. João Guilhermino, 55','Centro','São José dos Campos','SP','Brasil','12210-130'),
 ('HSP005','Rua Felício Savastano, 200','Vila Industrial','São José dos Campos','SP','Brasil','12220-490');
 
--- Telefones
-INSERT INTO telefones (codigo_cliente, ddd, numero) VALUES
+INSERT IGNORE INTO telefones (codigo_cliente, ddd, numero) VALUES
 ('HSP001','12','11111-1111'),
 ('HSP002','12','22222-2222'),
 ('HSP003','12','33333-3333'),
 ('HSP004','12','44444-4444'),
 ('HSP005','12','55555-5555');
 
--- Documentos
-INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES
+INSERT IGNORE INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES
 ('HSP001','111.111.111-11','Cadastro de Pessoa Física','2005-01-01'),
 ('HSP001','11.111.111-1','Registro Geral','2004-06-15'),
 ('HSP002','222.222.222-22','Cadastro de Pessoa Física','2008-03-10'),
@@ -109,8 +103,7 @@ INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES
 ('HSP004','44.444.444-4','Registro Geral','2005-12-01'),
 ('HSP005','555.555.555-55','Cadastro de Pessoa Física','2013-07-22');
 
--- Hospedagens
-INSERT INTO hospedagens VALUES
+INSERT IGNORE INTO hospedagens VALUES
 ('HOS001','HSP001','ACOM002','2024-12-01'),
 ('HOS002','HSP003','ACOM001','2024-12-03'),
 ('HOS003','HSP004','ACOM005','2024-12-05');

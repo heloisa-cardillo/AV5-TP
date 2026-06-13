@@ -88,12 +88,13 @@ const Hospedagens: React.FC = () => {
 
     const getNomeHospede = (codigo: string): string => {
         const hospede = hospedes.find(h => h.codigo === codigo);
-        return hospede ? `${hospede.nome} (${hospede.codigo})` : codigo;
+        return hospede ? `${hospede.nome} (${hospede.codigo})` : (codigo ?? '');
     };
 
     const getNomeAcomodacao = (codigo: string): string => {
         const acom = acomodacoes.find(a => a.codigo === codigo);
-        return acom ? NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao] : codigo;
+        if (!acom) return codigo ?? '';
+        return NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao] ?? acom.nomeAcomodacao ?? (codigo ?? '');
     };
 
     const dadosFiltrados = hospedagens.filter(h => {
@@ -116,7 +117,7 @@ const Hospedagens: React.FC = () => {
                 const acom = acomodacoes.find(a => a.codigo === value);
                 return acom ? (
                     <div>
-                        <div style={{ fontWeight: 700 }}>{NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao]}</div>
+                        <div style={{ fontWeight: 700 }}>{NOME_EXIBICAO_ACOMODACAO[acom.nomeAcomodacao] ?? acom.nomeAcomodacao}</div>
                         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{acom.nomeAcomodacao}</div>
                     </div>
                 ) : value;
@@ -170,7 +171,7 @@ const Hospedagens: React.FC = () => {
                             <option value="">Selecione uma acomodação...</option>
                             {acomodacoes.map(a => (
                                 <option key={a.codigo} value={a.codigo}>
-                                    {NOME_EXIBICAO_ACOMODACAO[a.nomeAcomodacao]} ({a.nomeAcomodacao})
+                                    {NOME_EXIBICAO_ACOMODACAO[a.nomeAcomodacao] ?? a.nomeAcomodacao} ({a.nomeAcomodacao})
                                 </option>
                             ))}
                         </select>

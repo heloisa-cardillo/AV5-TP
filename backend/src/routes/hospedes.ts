@@ -80,7 +80,8 @@ router.post('/', async (req: Request, res: Response) => {
             codigoTitular ?? null, foto ?? '']
     );
 
-    if (endereco) {
+    const enderecoTemDados = endereco && (endereco.rua || endereco.bairro || endereco.cidade || endereco.estado || endereco.codigoPostal);
+    if (enderecoTemDados) {
         await pool.execute(
             'INSERT INTO enderecos (codigo_cliente, rua, bairro, cidade, estado, pais, codigo_postal) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [codigo, endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal]
@@ -119,7 +120,8 @@ router.put('/:codigo', async (req: Request, res: Response) => {
         [nome ?? cliente.nome, nomeSocial ?? cliente.nome_social, dataNascimento ?? cliente.data_nasc, foto ?? cliente.foto ?? '', codigo]
     );
 
-    if (endereco !== undefined) {
+    const enderecoTemDados = endereco && (endereco.rua || endereco.bairro || endereco.cidade || endereco.estado || endereco.codigoPostal);
+    if (enderecoTemDados) {
         const [endExiste] = await pool.execute('SELECT codigo_cliente FROM enderecos WHERE codigo_cliente = ?', [codigo]);
         if ((endExiste as any[]).length > 0) {
             await pool.execute(
