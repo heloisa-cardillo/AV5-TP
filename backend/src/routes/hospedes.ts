@@ -1,33 +1,26 @@
 import { Router, Request, Response } from 'express';
-import { getDb, salvar } from '../database';
+import { getPool } from '../database';
 
 const router = Router();
 
-const toRows = (res: any[]): any[] => {
-    if (!res.length) return [];
-    const { columns, values } = res[0];
-    return values.map((row: any[]) =>
-        Object.fromEntries(columns.map((col: string, i: number) => [col, row[i]]))
-    );
-};
+const montarCliente = async (codigo: string): Promise<any | null> => {
+    const pool = getPool();
 
-const getOne = (sql: string, params: any[] = []): any | null => {
-    const rows = toRows(getDb().exec(sql, params));
-    return rows[0] ?? null;
-};
-
-const getAll = (sql: string, params: any[] = []): any[] => {
-    return toRows(getDb().exec(sql, params));
-};
-
-const montarCliente = (codigo: string) => {
-    const cliente = getOne('SELECT * FROM clientes WHERE codigo = ?', [codigo]);
+    const [clientes] = await pool.execute('SELECT * FROM clientes WHERE codigo = ?', [codigo]);
+    const cliente = (clientes as any[])[0];
     if (!cliente) return null;
 
-    const endereco = getOne('SELECT * FROM enderecos WHERE codigo_cliente = ?', [codigo]);
-    const telefones = getAll('SELECT ddd, numero FROM telefones WHERE codigo_cliente = ?', [codigo]);
-    const documentos = getAll('SELECT numero, tipo, data_expedicao as dataExpedicao FROM documentos WHERE codigo_cliente = ?', [codigo]);
-    const dependentes = getAll('SELECT codigo FROM clientes WHERE codigo_titular = ?', [codigo]);
+    const [enderecos] = await pool.execute('SELECT * FROM enderecos WHERE codigo_cliente = ?', [codigo]);
+    const endereco = (enderecos as any[])[0];
+
+    const [telefones] = await pool.execute('SELECT ddd, numero FROM telefones WHERE codigo_cliente = ?', [codigo]);
+
+    const [documentos] = await pool.execute(
+        'SELECT numero, tipo, data_expedicao AS dataExpedicao FROM documentos WHERE codigo_cliente = ?',
+        [codigo]
+    );
+
+    const [dependentes] = await pool.execute('SELECT codigo FROM clientes WHERE codigo_titular = ?', [codigo]);
 
     return {
         codigo,
@@ -47,130 +40,134 @@ const montarCliente = (codigo: string) => {
         } : {},
         telefones,
         documentos,
-        dependentes: dependentes.map((d: any) => d.codigo),
+        dependentes: (dependentes as any[]).map((d: any) => d.codigo),
     };
 };
 
 // GET /hospedes
-router.get('/', (_req: Request, res: Response) => {
-    const rows = getAll('SELECT codigo FROM clientes');
-    const clientes = rows.map(r => montarCliente(r.codigo)).filter(Boolean);
-    res.json(clientes);
+router.get('/', async (_req: Request, res: Response) => {
+    const pool = getPool();
+    const [rows] = await pool.execute('SELECT codigo FROM clientes');
+    const clientes = await Promise.all((rows as any[]).map(r => montarCliente(r.codigo)));
+    res.json(clientes.filter(Boolean));
 });
 
 // GET /hospedes/:codigo
-router.get('/:codigo', (req: Request, res: Response) => {
-    const cliente = montarCliente(req.params.codigo);
+router.get('/:codigo', async (req: Request, res: Response) => {
+    const cliente = await montarCliente(req.params.codigo);
     if (!cliente) return res.status(404).json({ erro: 'Hóspede não encontrado' });
     res.json(cliente);
 });
 
 // POST /hospedes
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
     const { codigo, nome, nomeSocial, dataNascimento, dataCadastro, codigoTitular, foto,
         endereco, telefones, documentos } = req.body;
 
-    if (!codigo || !nome || !nomeSocial || !dataNascimento) {
+    if (!codigo || !nome || !nomeSocial || !dataNascimento)
         return res.status(400).json({ erro: 'Campos obrigatórios: codigo, nome, nomeSocial, dataNascimento' });
-    }
 
-    const existente = getOne('SELECT codigo FROM clientes WHERE codigo = ?', [codigo]);
-    if (existente) return res.status(409).json({ erro: 'Código já cadastrado' });
+    const pool = getPool();
 
-    const db = getDb();
-    db.run(
-        'INSERT INTO clientes (codigo, nome, nome_social, data_nasc, data_cadastro, codigo_titular, foto) VALUES (?,?,?,?,?,?,?)',
+    const [existente] = await pool.execute('SELECT codigo FROM clientes WHERE codigo = ?', [codigo]);
+    if ((existente as any[]).length > 0)
+        return res.status(409).json({ erro: 'Código já cadastrado' });
+
+    await pool.execute(
+        'INSERT INTO clientes (codigo, nome, nome_social, data_nasc, data_cadastro, codigo_titular, foto) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [codigo, nome, nomeSocial, dataNascimento,
             dataCadastro ?? new Date().toISOString().split('T')[0],
             codigoTitular ?? null, foto ?? '']
     );
 
     if (endereco) {
-        db.run(
-            'INSERT INTO enderecos (codigo_cliente, rua, bairro, cidade, estado, pais, codigo_postal) VALUES (?,?,?,?,?,?,?)',
+        await pool.execute(
+            'INSERT INTO enderecos (codigo_cliente, rua, bairro, cidade, estado, pais, codigo_postal) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [codigo, endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal]
         );
     }
 
     if (telefones?.length) {
         for (const t of telefones)
-            db.run('INSERT INTO telefones (codigo_cliente, ddd, numero) VALUES (?,?,?)', [codigo, t.ddd, t.numero]);
+            await pool.execute('INSERT INTO telefones (codigo_cliente, ddd, numero) VALUES (?, ?, ?)', [codigo, t.ddd, t.numero]);
     }
 
     if (documentos?.length) {
         for (const d of documentos)
-            db.run('INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES (?,?,?,?)',
-                [codigo, d.numero, d.tipo, d.dataExpedicao]);
+            await pool.execute(
+                'INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES (?, ?, ?, ?)',
+                [codigo, d.numero, d.tipo, d.dataExpedicao]
+            );
     }
 
-    salvar();
-    res.status(201).json(montarCliente(codigo));
+    res.status(201).json(await montarCliente(codigo));
 });
 
-// PUT /hospedes/:codigo — aceita atualização parcial
-router.put('/:codigo', (req: Request, res: Response) => {
+// PUT /hospedes/:codigo
+router.put('/:codigo', async (req: Request, res: Response) => {
     const { codigo } = req.params;
     const { nome, nomeSocial, dataNascimento, foto, endereco, telefones, documentos } = req.body;
 
-    const atual = getOne('SELECT * FROM clientes WHERE codigo = ?', [codigo]);
-    if (!atual) return res.status(404).json({ erro: 'Hóspede não encontrado' });
+    const pool = getPool();
 
-    const db = getDb();
+    const [atual] = await pool.execute('SELECT * FROM clientes WHERE codigo = ?', [codigo]);
+    const cliente = (atual as any[])[0];
+    if (!cliente) return res.status(404).json({ erro: 'Hóspede não encontrado' });
 
-    // Atualiza campos básicos apenas se foram enviados
-    const novoNome = nome ?? atual.nome;
-    const novoSocial = nomeSocial ?? atual.nome_social;
-    const novaDataNasc = dataNascimento ?? atual.data_nasc;
-    const novaFoto = foto ?? atual.foto ?? '';
-
-    db.run('UPDATE clientes SET nome=?, nome_social=?, data_nasc=?, foto=? WHERE codigo=?',
-        [novoNome, novoSocial, novaDataNasc, novaFoto, codigo]);
+    await pool.execute(
+        'UPDATE clientes SET nome = ?, nome_social = ?, data_nasc = ?, foto = ? WHERE codigo = ?',
+        [nome ?? cliente.nome, nomeSocial ?? cliente.nome_social, dataNascimento ?? cliente.data_nasc, foto ?? cliente.foto ?? '', codigo]
+    );
 
     if (endereco !== undefined) {
-        const endExiste = getOne('SELECT codigo_cliente FROM enderecos WHERE codigo_cliente = ?', [codigo]);
-        if (endExiste) {
-            db.run('UPDATE enderecos SET rua=?, bairro=?, cidade=?, estado=?, pais=?, codigo_postal=? WHERE codigo_cliente=?',
-                [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal, codigo]);
+        const [endExiste] = await pool.execute('SELECT codigo_cliente FROM enderecos WHERE codigo_cliente = ?', [codigo]);
+        if ((endExiste as any[]).length > 0) {
+            await pool.execute(
+                'UPDATE enderecos SET rua = ?, bairro = ?, cidade = ?, estado = ?, pais = ?, codigo_postal = ? WHERE codigo_cliente = ?',
+                [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal, codigo]
+            );
         } else {
-            db.run('INSERT INTO enderecos (codigo_cliente, rua, bairro, cidade, estado, pais, codigo_postal) VALUES (?,?,?,?,?,?,?)',
-                [codigo, endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal]);
+            await pool.execute(
+                'INSERT INTO enderecos (codigo_cliente, rua, bairro, cidade, estado, pais, codigo_postal) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [codigo, endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.codigoPostal]
+            );
         }
     }
 
     if (telefones !== undefined) {
-        db.run('DELETE FROM telefones WHERE codigo_cliente=?', [codigo]);
+        await pool.execute('DELETE FROM telefones WHERE codigo_cliente = ?', [codigo]);
         for (const t of telefones)
-            db.run('INSERT INTO telefones (codigo_cliente, ddd, numero) VALUES (?,?,?)', [codigo, t.ddd, t.numero]);
+            await pool.execute('INSERT INTO telefones (codigo_cliente, ddd, numero) VALUES (?, ?, ?)', [codigo, t.ddd, t.numero]);
     }
 
     if (documentos !== undefined) {
-        db.run('DELETE FROM documentos WHERE codigo_cliente=?', [codigo]);
+        await pool.execute('DELETE FROM documentos WHERE codigo_cliente = ?', [codigo]);
         for (const d of documentos)
-            db.run('INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES (?,?,?,?)',
-                [codigo, d.numero, d.tipo, d.dataExpedicao]);
+            await pool.execute(
+                'INSERT INTO documentos (codigo_cliente, numero, tipo, data_expedicao) VALUES (?, ?, ?, ?)',
+                [codigo, d.numero, d.tipo, d.dataExpedicao]
+            );
     }
 
-    salvar();
-    res.json(montarCliente(codigo));
+    res.json(await montarCliente(codigo));
 });
 
 // DELETE /hospedes/:codigo
-router.delete('/:codigo', (req: Request, res: Response) => {
+router.delete('/:codigo', async (req: Request, res: Response) => {
     const { codigo } = req.params;
-    const existente = getOne('SELECT codigo FROM clientes WHERE codigo = ?', [codigo]);
-    if (!existente) return res.status(404).json({ erro: 'Hóspede não encontrado' });
+    const pool = getPool();
 
-    const db = getDb();
-    const dependentes = getAll('SELECT codigo FROM clientes WHERE codigo_titular=?', [codigo]);
+    const [existente] = await pool.execute('SELECT codigo FROM clientes WHERE codigo = ?', [codigo]);
+    if ((existente as any[]).length === 0)
+        return res.status(404).json({ erro: 'Hóspede não encontrado' });
 
-    for (const dep of dependentes) {
-        db.run('DELETE FROM hospedagens WHERE codigo_cliente=?', [dep.codigo]);
-        db.run('DELETE FROM clientes WHERE codigo=?', [dep.codigo]);
+    const [dependentes] = await pool.execute('SELECT codigo FROM clientes WHERE codigo_titular = ?', [codigo]);
+    for (const dep of dependentes as any[]) {
+        await pool.execute('DELETE FROM clientes WHERE codigo = ?', [dep.codigo]);
     }
-    db.run('DELETE FROM hospedagens WHERE codigo_cliente=?', [codigo]);
-    db.run('DELETE FROM clientes WHERE codigo=?', [codigo]);
 
-    salvar();
+    await pool.execute('DELETE FROM clientes WHERE codigo = ?', [codigo]);
+
     res.status(204).send();
 });
 

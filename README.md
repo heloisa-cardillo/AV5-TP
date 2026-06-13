@@ -1,14 +1,55 @@
 # Atlantis
 
-Interface web completa do sistema Atlantis, desenvolvida com React + TypeScript + Vite no frontend e Node.js + Express + SQLite no backend. Esta é a AV5 da disciplina de Tecnologia de Programação da FATEC São José dos Campos, evolução da SPA desenvolvida na AV4.
+Interface web completa do sistema Atlantis, desenvolvida com React + TypeScript + Vite no frontend e Node.js + Express + MySQL no backend. Esta é a AV5 da disciplina de Tecnologia de Programação da FATEC São José dos Campos, evolução da SPA desenvolvida na AV4.
+
+## Pré-requisitos
+
+- Node.js instalado
+- MySQL instalado e rodando
+
+## Configuração do banco de dados
+
+**1. Acesse o MySQL**
+
+Windows:
+```powershell
+mysql -u root -p
+```
+
+Linux:
+```bash
+mysql -u root -p
+```
+
+**2. Rode o script SQL**
+
+Windows:
+```powershell
+Get-Content backend\atlantis.sql | mysql -u root -p
+```
+
+Linux:
+```bash
+mysql -u root -p < backend/atlantis.sql
+```
+
+Isso criará o banco `atlantis` com todas as tabelas e dados iniciais.
+
+## Configuração do ambiente
+
+Crie o arquivo `backend/.env` com base no `backend/.env.example`:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=sua_senha_aqui
+DB_NAME=atlantis
+```
 
 ## Como rodar
 
-**Pré-requisitos**
-- Node.js instalado
-- npm instalado
-
-**1. Backend (API + Banco de dados)**
+**1. Backend (em um terminal)**
 
 ```bash
 cd backend
@@ -21,7 +62,6 @@ O backend estará disponível em `http://localhost:3001`.
 **2. Frontend (em outro terminal)**
 
 ```bash
-# Na raiz do projeto
 npm install
 npm run dev
 ```
@@ -41,7 +81,7 @@ O sistema estará disponível em `http://localhost:5173`.
 - Node.js
 - Express
 - TypeScript
-- sql.js (SQLite)
+- MySQL2
 
 ## Funcionalidades
 
@@ -49,4 +89,4 @@ O sistema estará disponível em `http://localhost:5173`.
 - Gerenciamento de documentos por hóspede
 - Registro e exclusão de hospedagens (check-in)
 - Visualização das acomodações disponíveis
-- Dados persistidos em banco de dados SQLite
+- Dados persistidos em banco de dados MySQL

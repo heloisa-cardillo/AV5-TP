@@ -1,63 +1,51 @@
 import { Router, Request, Response } from 'express';
-import { getDb, salvar } from '../database';
+import { getPool } from '../database';
 
 const router = Router();
 
-const toRows = (res: any[]): any[] => {
-    if (!res.length) return [];
-    const { columns, values } = res[0];
-    return values.map((row: any[]) =>
-        Object.fromEntries(columns.map((col: string, i: number) => [col, row[i]]))
+router.get('/', async (_req: Request, res: Response) => {
+    const [rows] = await getPool().execute(
+        'SELECT codigo, codigo_cliente AS codigoCliente, codigo_acomodacao AS codigoAcomodacao, data_check_in AS dataCheckIn FROM hospedagens ORDER BY data_check_in DESC'
     );
-};
-
-const getOne = (sql: string, params: any[] = []): any | null => {
-    const rows = toRows(getDb().exec(sql, params));
-    return rows[0] ?? null;
-};
-
-// GET /hospedagens
-router.get('/', (_req: Request, res: Response) => {
-    const rows = toRows(getDb().exec(
-        'SELECT codigo, codigo_cliente as codigoCliente, codigo_acomodacao as codigoAcomodacao, data_check_in as dataCheckIn FROM hospedagens ORDER BY data_check_in DESC'
-    ));
     res.json(rows);
 });
 
-// POST /hospedagens
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
     const { codigo, codigoCliente, codigoAcomodacao, dataCheckIn } = req.body;
 
-    if (!codigo || !codigoCliente || !codigoAcomodacao || !dataCheckIn) {
+    if (!codigo || !codigoCliente || !codigoAcomodacao || !dataCheckIn)
         return res.status(400).json({ erro: 'Campos obrigatórios: codigo, codigoCliente, codigoAcomodacao, dataCheckIn' });
-    }
 
-    if (getOne('SELECT codigo FROM hospedagens WHERE codigo=?', [codigo]))
+    const pool = getPool();
+
+    const [hospExiste] = await pool.execute('SELECT codigo FROM hospedagens WHERE codigo = ?', [codigo]);
+    if ((hospExiste as any[]).length > 0)
         return res.status(409).json({ erro: 'Código já cadastrado' });
 
-    if (!getOne('SELECT codigo FROM clientes WHERE codigo=?', [codigoCliente]))
+    const [clienteExiste] = await pool.execute('SELECT codigo FROM clientes WHERE codigo = ?', [codigoCliente]);
+    if ((clienteExiste as any[]).length === 0)
         return res.status(400).json({ erro: 'Hóspede não encontrado' });
 
-    if (!getOne('SELECT codigo FROM acomodacoes WHERE codigo=?', [codigoAcomodacao]))
+    const [acomExiste] = await pool.execute('SELECT codigo FROM acomodacoes WHERE codigo = ?', [codigoAcomodacao]);
+    if ((acomExiste as any[]).length === 0)
         return res.status(400).json({ erro: 'Acomodação não encontrada' });
 
-    getDb().run(
-        'INSERT INTO hospedagens (codigo, codigo_cliente, codigo_acomodacao, data_check_in) VALUES (?,?,?,?)',
+    await pool.execute(
+        'INSERT INTO hospedagens (codigo, codigo_cliente, codigo_acomodacao, data_check_in) VALUES (?, ?, ?, ?)',
         [codigo, codigoCliente, codigoAcomodacao, dataCheckIn]
     );
 
-    salvar();
     res.status(201).json({ codigo, codigoCliente, codigoAcomodacao, dataCheckIn });
 });
 
-// DELETE /hospedagens/:codigo
-router.delete('/:codigo', (req: Request, res: Response) => {
+router.delete('/:codigo', async (req: Request, res: Response) => {
     const { codigo } = req.params;
-    if (!getOne('SELECT codigo FROM hospedagens WHERE codigo=?', [codigo]))
+
+    const [rows] = await getPool().execute('SELECT codigo FROM hospedagens WHERE codigo = ?', [codigo]);
+    if ((rows as any[]).length === 0)
         return res.status(404).json({ erro: 'Hospedagem não encontrada' });
 
-    getDb().run('DELETE FROM hospedagens WHERE codigo=?', [codigo]);
-    salvar();
+    await getPool().execute('DELETE FROM hospedagens WHERE codigo = ?', [codigo]);
     res.status(204).send();
 });
 

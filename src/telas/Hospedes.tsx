@@ -459,10 +459,14 @@ const Hospedes: React.FC = () => {
                                 </div>
                             </div>
 
-                            <h3 className="form-section-title">Documentos</h3>
-                            <button className="btn-secondary" style={{ marginBottom: '16px' }} onClick={() => abrirModalDoc(hospedeEditando!)}>
-                                Gerenciar Documentos
-                            </button>
+                            {hospedeEditando && (
+                                <>
+                                    <h3 className="form-section-title">Documentos</h3>
+                                    <button className="btn-secondary" style={{ marginBottom: '16px' }} onClick={() => abrirModalDoc(hospedeEditando!)}>
+                                        Gerenciar Documentos
+                                    </button>
+                                </>
+                            )}
                         </>
                     )}
 
