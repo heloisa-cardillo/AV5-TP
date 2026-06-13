@@ -9,8 +9,6 @@ Aplicação web do sistema Atlantis — React + TypeScript + Vite no frontend e 
 
 ## Como rodar
 
-> O backend precisa estar rodando antes de acessar o frontend.
-
 **1. Configure o banco no `.env`**
 
 Abra o arquivo `backend/.env` e coloque a senha do seu MySQL no campo `DB_PASSWORD`:
@@ -24,6 +22,9 @@ DB_NAME=atlantis
 ```
 
 **2. Backend** (em um terminal)
+
+**O backend precisa estar rodando antes de acessar o frontend.**
+
 ```bash
 cd backend
 npm install
